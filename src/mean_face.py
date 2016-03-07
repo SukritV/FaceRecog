@@ -2,28 +2,27 @@ import numpy as np
 from PIL import Image as IM
 import pylab
 
-def mode_normalize( mode ) :
-	MAX = 0 
-	for item in mode : 
-		MAX = max(item) if MAX < max(item) else MAX
+def mode_normalize( mode, high = 255 , low = 0) :
+	MAX = np.max(mode)
+	MIN = np.min(mode)
 
-	print "Mode MAX : " , MAX
+	#print "Mode MIN : " , MIN 
+	#print "Mode MAX : " , MAX
 
  	mode_255 = mode
-	w,h = mode.shape
 
-	if ( MAX > 255 ) :
-		for item in mode :
-			for i in range(0,w,1) :
-				for j in range(0,h,1) :
-					mode_255[i][j] = (mode[i][j]/MAX) * 255
+ 	mode_255 -= float(MIN)
+ 	mode_255 /= float(MAX-MIN)
+
+ 	mode_255 *= (high - low)
+ 	mode_255 += low
 
 	return mode_255
 
 
 
 i = 0
-m = 10 # number of images used to calculate mean
+m = 20 # number of images used to calculate mean
 
 faces = []
 
@@ -93,37 +92,54 @@ for i in range(0,N,1) :
 PCA - 1 
 '''
 
-COV = np.dot(flat_darray,flat_darray.T) #compute covariance matrix of non-zero eigenvectors 
+COV =  (np.dot(flat_darray,flat_darray.T)) #compute covariance matrix of non-zero eigenvectors
+
 #print COV
 #print COV.shape
 
 
-e,EVector = np.linalg.eigh(COV) # get eigenvalues and eigenvectors
+eigenvalues,eigenvectors = np.linalg.eigh(COV) # get eigenvalues and eigenvectors
 #print EVector.shape
 #print e
+
+# sorting eigenvalues in descending order
+index_arr = np.argsort(-eigenvalues)
+eigenvalues = eigenvalues[index_arr]
+
+# sorting eigenvectors in ascending order of their eigenvalues 
+eigenvectors = eigenvectors[:,index_arr]
 
 #print flat_darray.shape
 #print (flat_darray.T).shape
 
-tmp = (np.dot(flat_darray.T,EVector)).T # ( (difference_vector).T x EVector ).T  - obtain eigenfaces [eigenfaces represent the largest similarities between some faces, and the most drastic differences between others]
+#tmp = (np.dot(flat_darray.T,eigenvectors)).T # ( (difference_vector).T x EVector ).T  - obtain eigenfaces [eigenfaces represent the largest similarities between some faces, and the most drastic differences between others]
+V1 = np.dot(eigenvectors.T,flat_darray) # same as above
+
+print flat_darray.shape
+print eigenvectors.shape
+print eigenvectors.T.shape
+
 
 # V is the projection matrix 
-V = tmp[::-1] # reversing array, puts it in descending order - eigenvectors with most variance
+#V1 = tmp [::-1] # reversing array, puts it in descending order - eigenvectors with most variance
 #V = np.argsort(tmp,axis=0)
+
+
 
 # S is the variance 
 #S = e[::-1] # reversing eigenvalues as well, singular value decompisition = sqrt(eigenvalue) - PCA uses SVD
 #print S
 #S = np.sqrt(S)
 
-mode1 = V[0].reshape(h,w) # using first principal component
-mode2 = V[1].reshape(h,w)
-mode3 = V[9].reshape(h,w)
+mode1 = V1[0].reshape(h,w) # using first principal component
+mode2 = V1[4].reshape(h,w)
+mode3 = V1[9].reshape(h,w)
 #print mode1.shape
 
 
-
 mode_255 = mode_normalize(mode1)
+mode_255_2 = mode_normalize(mode2)
+
 
 
 
@@ -136,13 +152,14 @@ pylab.figure()
 pylab.gray()
 pylab.imshow(mean_array)
 '''
-pylab.figure()
-pylab.gray()
-pylab.imshow(mode1)
 
 pylab.figure()
 pylab.gray()
 pylab.imshow(mode_255)
+
+pylab.figure()
+pylab.gray()
+pylab.imshow(mode_255_2)
 
 
 '''
@@ -164,8 +181,16 @@ results_array = (results.Y.T)#[::-1]
 #print mode_PCA.shape
 mode_PCA = results_array[0].reshape(h,w)
 
+mode_PCA = mode_normalize(mode_PCA)
 
-print "OurPCA: \n ", V[0]
+print "-------------"
+
+print "OurPCA: \n ", V1[0]
+
+print "-------------"
+
+
+print "OurPCA 2: \n ", V1[9]
 
 print "-------------"
 
@@ -177,7 +202,13 @@ print "OurPCA mode: \n " , mode1
 
 print "-------------"
 
+print "OurPCA mode 2: \n " , mode2
+
+print "-------------"
+
 print "MATPLOTLIB mode: \n " , mode_PCA
+
+print "-------------"
 #print results_array
 
 
@@ -187,7 +218,6 @@ pylab.gray()
 pylab.imshow(mode_PCA)
 
 pylab.show()
-
 
 '''
 # Round values in array and cast as 8-bit integer
