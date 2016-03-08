@@ -2,6 +2,38 @@ import numpy as np
 from PIL import Image as IM
 import pylab
 
+def PCA( X ) :
+  # Principal Component Analysis
+  # input: X, face matrix with training data as flattened arrays in rows
+  # return: projection matrix having most variance first
+
+  #get dimensions
+  num_data,dim = X.shape
+
+  #get mean face
+  mean_X = X.mean(axis=0)
+  for i in range(num_data):
+      X[i] -= mean_X
+
+  COV = np.dot(X,X.T) #covariance matrix
+  eigenvalues,eigenvectors = np.linalg.eigh(COV) #eigenvalues and eigenvectors
+  tmp = np.dot(X.T,eigenvectors).T
+
+  #sorting eigenvalues in descending order
+  index_arr = np.argsort(-eigenvalues)
+  eigenvalues = eigenvalues[index_arr]
+
+  #sorting eigenvectors in ascending order of their eigenvalues
+  eigenvectors = eigenvectors[:,index_arr]
+
+  V = tmp[::-1] #reverse since last eigenvectors are the ones we want
+
+
+  #return the projection matrix, the variance and the mean
+  return V,mean_X, eigenvalues, eigenvectors
+
+
+
 def mode_normalize( mode, high = 255 , low = 0) :
 	MAX = np.max(mode)
 	MIN = np.min(mode)
@@ -60,14 +92,18 @@ w,h = faces[0].size # get size (WxH) of first image in list, assuming all are sa
 N = len(faces) # number of faces
 print "Number of face images : " , N
 
+
+
 mean_array=np.zeros((h,w),np.float) # filling empty numpy array 92x112 with zeros
 
 
 for face in faces :
     imarr=np.array(face,dtype=np.float) # converting each 'face image' into numpy array
-    mean_array += imarr #adding up all the faces
+    mean_array += imarr#adding up all the faces
 
 mean_array /= N #calculating mean face
+
+
 
 diff_array = [N] # diff_array = face - mean_array
 
@@ -85,29 +121,28 @@ flat_marray = mean_array.flatten()
 
 
 for i in range(0,N,1) :
-	flat_darray[i]=(diff_array[i].flatten()) # converting NxHxW 3D array to Nx(HxW) 2D array i.e N rows for each face, of HxW columns
+	flat_darray[i]=(diff_array[i].flatten())
 
 
 '''
-PCA - 1 
+PCA
 '''
 
-COV =  (np.dot(flat_darray,flat_darray.T)) #compute covariance matrix of non-zero eigenvectors
+X = np.array([np.array(faces[i]).flatten() for i in range(N)],'f') # converting NxHxW 3D array to Nx(HxW) 2D array i.e N rows for each face, of HxW columns
+V1, mean, evalue, evector = PCA(X)
+
+'''
+cov =  (np.dot(flat_darray,flat_darray.T)) #compute covariance matrix of non-zero eigenvectors
 
 #print COV
 #print COV.shape
 
 
-eigenvalues,eigenvectors = np.linalg.eigh(COV) # get eigenvalues and eigenvectors
+eigenvalues,eigenvectors = np.linalg.eigh(cov) # get eigenvalues and eigenvectors
 #print EVector.shape
 #print e
 
-# sorting eigenvalues in descending order
-index_arr = np.argsort(-eigenvalues)
-eigenvalues = eigenvalues[index_arr]
 
-# sorting eigenvectors in ascending order of their eigenvalues 
-eigenvectors = eigenvectors[:,index_arr]
 
 #print flat_darray.shape
 #print (flat_darray.T).shape
@@ -135,7 +170,12 @@ mode1 = V1[0].reshape(h,w) # using first principal component
 mode2 = V1[4].reshape(h,w)
 mode3 = V1[9].reshape(h,w)
 #print mode1.shape
+'''
 
+
+mode1 = V1[0].reshape(h,w) # using first principal component
+mode2 = V1[4].reshape(h,w)
+mode3 = V1[9].reshape(h,w)
 
 mode_255 = mode_normalize(mode1)
 mode_255_2 = mode_normalize(mode2)
@@ -143,15 +183,9 @@ mode_255_2 = mode_normalize(mode2)
 
 
 
-'''
-pylab.figure()
-pylab.gray()
-pylab.imshow(diff_array[0])
-
 pylab.figure()
 pylab.gray()
 pylab.imshow(mean_array)
-'''
 
 pylab.figure()
 pylab.gray()
@@ -162,54 +196,7 @@ pylab.gray()
 pylab.imshow(mode_255_2)
 
 
-'''
-pylab.figure()
-pylab.gray()
-pylab.imshow(np.array(faces[0],dtype=np.float))
-'''
 
-'''
-PCA - MATPLOTLIB
-'''
-
-from matplotlib.mlab import PCA
-
-results = PCA(flat_darray.T) 
-results_array = (results.Y.T)#[::-1]
-
-#mode_PCA = (results.Y.T)[0].reshape(h,w)
-#print mode_PCA.shape
-mode_PCA = results_array[0].reshape(h,w)
-
-mode_PCA = mode_normalize(mode_PCA)
-
-print "-------------"
-
-print "OurPCA: \n ", V1[0]
-
-print "-------------"
-
-
-print "OurPCA 2: \n ", V1[9]
-
-print "-------------"
-
-print "MATPLOTLIB PCA: \n ", results_array[0]
-
-print "-------------"
-
-print "OurPCA mode: \n " , mode1
-
-print "-------------"
-
-print "OurPCA mode 2: \n " , mode2
-
-print "-------------"
-
-print "MATPLOTLIB mode: \n " , mode_PCA
-
-print "-------------"
-#print results_array
 
 
 
